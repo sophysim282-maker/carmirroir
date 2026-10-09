@@ -1,0 +1,20 @@
+name: Build CarScreen IPA
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - run: |
+          xcodebuild -project CarScreen.xcodeproj -scheme CarScreen -configuration Release \
+            -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - run: |
+          mkdir Payload
+          cp -r build/Build/Products/Release-iphoneos/CarScreen.app Payload/
+          zip -r CarScreen.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CarScreen-ipa
+          path: CarScreen.ipa
