@@ -1,0 +1,46 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CarScreen</title>
+<style>
+html,body{margin:0;height:100%;background:#000;color:#fff;font-family:system-ui,sans-serif;overflow:hidden}
+video,canvas,iframe{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none;background:#000;border:0}
+#idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;box-sizing:border-box}
+h1{font-size:44px;margin:0}#st{opacity:.7;font-size:20px}
+#bar{display:flex;gap:8px;width:min(720px,100%)}
+#bar input{flex:1;font-size:18px;padding:12px;border-radius:12px;border:0;background:#222;color:#fff}
+#bar button,#stop{padding:12px 18px;border-radius:99px;border:0;background:#fff3;color:#fff;font-size:16px}
+#stop{position:absolute;top:16px;right:16px;display:none;z-index:5}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+</head><body>
+<video id="v" playsinline controls></video><canvas id="c"></canvas><iframe id="yt" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+<div id="idle"><h1>CarScreen</h1><div id="st">Connecting…</div>
+<div style="opacity:.5;text-align:center">Paste a YouTube link here or in the iPhone app,<br>or cast (DLNA / TV button) to “CarScreen”</div>
+<div id="bar"><input id="u" placeholder="YouTube or video link"><button id="go">Play</button></div></div>
+<button id="stop">Stop</button>
+<script>
+const v=document.getElementById('v'),c=document.getElementById('c'),yt=document.getElementById('yt'),idle=document.getElementById('idle'),st=document.getElementById('st'),stopB=document.getElementById('stop');
+let hls=null;
+function show(m){v.style.display=m==='video'?'block':'none';c.style.display=m==='frames'?'block':'none';yt.style.display=m==='yt'?'block':'none';idle.style.display=m==='idle'?'flex':'none';stopB.style.display=m==='idle'?'none':'block';}
+function ytId(u){const m=u.match(/(?:youtu\.be\/|v=|\/shorts\/|\/embed\/|\/live\/)([\w-]{11})/);return m?m[1]:null}
+function play(url,pos){reset();const id=ytId(url);
+ if(id){yt.src='https://www.youtube.com/embed/'+id+'?autoplay=1&playsinline=1&rel=0&start='+Math.floor(pos||0);show('yt');return}
+ show('video');
+ if(url.includes('.m3u8')&&!v.canPlayType('application/vnd.apple.mpegurl')&&window.Hls&&Hls.isSupported()){hls=new Hls();hls.loadSource(url);hls.attachMedia(v)}else v.src=url;
+ v.addEventListener('loadedmetadata',()=>{if(pos)v.currentTime=pos},{once:true});v.play().catch(()=>st.textContent='Tap to play');}
+function reset(){if(hls){hls.destroy();hls=null}v.removeAttribute('src');v.load();yt.src='about:blank'}
+function stop(){reset();show('idle')}
+stopB.onclick=stop;v.onclick=()=>v.play();
+document.getElementById('go').onclick=()=>{const u=document.getElementById('u').value.trim();if(u)play(u,0)};
+let ws;
+function sendState(){if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'state',position:v.currentTime||0,duration:isFinite(v.duration)?v.duration:0,rate:v.paused?0:1}))}
+setInterval(sendState,1000);
+function connect(){ws=new WebSocket('ws://'+location.host+'/ws');ws.binaryType='blob';
+ ws.onopen=()=>st.textContent='Connected ✓';
+ ws.onclose=()=>{st.textContent='Reconnecting…';setTimeout(connect,2000)};
+ ws.onmessage=async e=>{if(typeof e.data==='string'){const m=JSON.parse(e.data);
+   if(m.type==='play')play(m.url,m.position||0);else if(m.type==='rate')m.value>0?v.play():v.pause();
+   else if(m.type==='scrub')v.currentTime=m.position;else if(m.type==='volume')v.volume=Math.max(0,Math.min(1,m.value));else if(m.type==='stop')stop();return}
+  show('frames');const b=await createImageBitmap(e.data);c.width=b.width;c.height=b.height;c.getContext('2d').drawImage(b,0,0)};}
+connect();
+</script></body></html>

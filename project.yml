@@ -1,0 +1,49 @@
+name: CarScreen
+options:
+  bundleIdPrefix: com.personal
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  CarScreen:
+    type: application
+    platform: iOS
+    sources:
+      - path: CarScreen
+    resources:
+      - CarScreen/car-player.html
+    info:
+      path: CarScreen/Info.plist
+      properties:
+        CFBundleDisplayName: CarScreen
+        UILaunchScreen: {}
+        UIBackgroundModes: [audio]
+        NSLocalNetworkUsageDescription: CarScreen sends video to your car screen over Wi-Fi.
+        NSBonjourServices: [_airplay._tcp, _raop._tcp]
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+    dependencies:
+      - target: BroadcastExtension
+        embed: true
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.personal.carscreen
+      CODE_SIGNING_ALLOWED: NO
+      CODE_SIGNING_REQUIRED: NO
+      CODE_SIGN_IDENTITY: ""
+  BroadcastExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: BroadcastExtension
+    info:
+      path: BroadcastExtension/Info.plist
+      properties:
+        CFBundleDisplayName: CarScreen Mirror
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
+          RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.personal.carscreen.BroadcastExtension
+      CODE_SIGNING_ALLOWED: NO
+      CODE_SIGNING_REQUIRED: NO
+      CODE_SIGN_IDENTITY: ""
